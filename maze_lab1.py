@@ -66,14 +66,14 @@ class Maze:
         return actions;
 
     def __states_player(self):
-        states = dict();
-        map = dict();
-        s = 0;
+        states = dict()
+        map = dict()
+        s = 0
         for i in range(self.maze.shape[0]):
             for j in range(self.maze.shape[1]):
-                states[s] = (i, j);
-                map[(i, j)] = s;
-                s += 1;
+                states[s] = (i, j)
+                map[(i, j)] = s
+                s += 1
         return states, map
 
     def __states_minotaur(self):
@@ -83,7 +83,7 @@ class Maze:
         for i in range(self.maze.shape[0]):
             for j in range(self.maze.shape[1]):
                 states_minotaur[s] = (i, j)
-                map[(i, j)] = s
+                map_minotaur[(i, j)] = s
                 s += 1
         return states_minotaur, map_minotaur
 
