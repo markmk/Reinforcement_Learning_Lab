@@ -1,9 +1,9 @@
+import random
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 from IPython import display
-import random
 
 # Implemented methods
 methods = ['DynProg', 'ValIter'];
@@ -37,8 +37,8 @@ class Maze:
     # Reward values
     STEP_REWARD = -1
     GOAL_REWARD = 0
-    OBSTACLE_REWARD = -50
-    MINOTAUR_REWARD = -100
+    OBSTACLE_REWARD = -100
+    MINOTAUR_REWARD = -150
 
     EXIT = (5, 5)
 
@@ -54,6 +54,8 @@ class Maze:
         self.n_states_minotaur = len(self.states_minotaur);  # need varying ??
         self.transition_probabilities_player = self.__transitions_player();
         self.transition_probabilities_minotaur = self.__transitions_minotaur();
+        self.path_minotaur = self.__get_minotaur_path()
+        self.rewards = self.__get_rewards()
         # self.rewards = self.__rewards(weights=weights,
         #                               random_rewards=random_rewards);
 
@@ -159,17 +161,35 @@ class Maze:
                 transition_probabilities[next_s, s, a] = 1;
         return transition_probabilities;
 
-    def get_rewards(self, state_player, state_minotaur, action_player, action_minotaur):
-        next_state_player = self.__move_player(state_player, action_player)
-        next_state_minotaur = self.__move_minotaur(state_minotaur, action_minotaur)
-        if next_state_player == next_state_minotaur:
-            return self.MINOTAUR_REWARD
-        elif next_state_player == state_player:
-            return self.OBSTACLE_REWARD
-        elif next_state_player == self.EXIT:
-            return self.GOAL_REWARD
-        else:
-            return self.STEP_REWARD
+    def __get_minotaur_path(self):
+        start_minotaur = (6, 5)
+        s_minotaur = self.map_minotaur[start_minotaur]
+        T = 20
+        path_minotaur = list()
+        path_minotaur.append(start_minotaur)
+        for t in range(T):
+            next_s_minotaur = self.__move_minotaur(s_minotaur, random.randint(0, 4))
+            path_minotaur.append(self.states_minotaur[next_s_minotaur])
+            s_minotaur = next_s_minotaur
+
+        return path_minotaur
+
+    def __get_rewards(self):
+        rewards = np.zeros((self.n_states_player, self.n_actions));
+
+        for s in range(self.n_states_player):
+            for a in range(self.n_actions):
+                next_s = self.__move_player(s, a)
+                # Rewrd for hitting a wall
+                if s == next_s and a != self.STAY:
+                    rewards[s, a] = self.OBSTACLE_REWARD
+                # Reward for reaching the exit
+                elif s == next_s and self.maze[self.states_player[next_s]] == 2:
+                    rewards[s, a] = self.GOAL_REWARD
+                # Reward for taking a step to an empty cell that is not the exit
+                else:
+                    rewards[s, a] = self.STEP_REWARD
+        return rewards
 
     def simulate(self, start_player, start_minotaur, policy, method):
         if method not in methods:
@@ -177,29 +197,28 @@ class Maze:
             raise NameError(error);
 
         path_player = list();
-        path_minotaur = list();
+        path_minotaur = self.path_minotaur
         if method == 'DynProg':
             # Deduce the horizon from the policy shape
             horizon = policy.shape[1];
             # Initialize current state and time
             t = 0;
             s_player = self.map_player[start_player];
-            s_minotaur = self.map_minotaur[start_minotaur]
+            s_minotaur = path_minotaur[t]
             # Add the starting position in the maze to the path
             path_player.append(start_player);
-            path_minotaur.append(start_minotaur);
+
             while t < horizon - 1 and s_player != s_minotaur:
+                t += 1
                 # Move to next state given the policy and the current state
                 next_s_player = self.__move_player(s_player, policy[s_player, t]);
-                next_s_minotaur = self.__move_minotaur(s_minotaur, random.randint(0, 4))
+
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path_player.append(self.states_player[next_s_player])
-                path_minotaur.append(self.states_minotaur[next_s_minotaur])
+                s_minotaur = path_minotaur[t]
                 # Update time and state for next iteration
-                t += 1
                 s_player = next_s_player
-                s_minotaur = next_s_minotaur
                 print(t)
 
         if method == 'ValIter':
@@ -212,7 +231,7 @@ class Maze:
             path_minotaur.append(start_minotaur);
             # Move to next state given the policy and the current state
             next_s_player = self.__move_player(s_player, policy[s_player]);
-            next_s_minotaur = self.__move_minotaur(s_minotaur, random.randint(0,4))
+            next_s_minotaur = self.__move_minotaur(s_minotaur, random.randint(0, 4))
             # Add the position in the maze corresponding to the next state
             # to the path
             path_player.append(self.states_player[next_s_player])
@@ -273,10 +292,12 @@ def dynamic_programming(env, horizon):
     # - State space
     # - Action space
     # - The finite horizon
+    path_minotaur = env.path_minotaur
+    r = env.rewards
     p_player = env.transition_probabilities_player
     n_states_player = env.n_states_player
+    states_player = env.states_player
 
-    n_states_minotaur = env.n_states_minotaur
 
     n_actions = env.n_actions
 
@@ -288,6 +309,7 @@ def dynamic_programming(env, horizon):
     Q = np.zeros((n_states_player, n_actions));
 
     # Initialization
+    Q = np.copy(r);
     V[:, T] = np.max(Q, 1);
     policy[:, T] = np.argmax(Q, 1);
 
@@ -295,10 +317,11 @@ def dynamic_programming(env, horizon):
     for t in range(T - 1, -1, -1):
         # Update the value function acccording to the bellman equation
         for s_p in range(n_states_player):
-            for s_m in range(n_states_minotaur):
-                for a_p in range(n_actions):
-                    for a_m in range(n_actions):
-                        Q[s_p, a_p] = env.get_rewards(s_p, s_m, a_p, a_m) +  np.dot(p_player[:, s_p, a_p], V[:,t+1])
+            for a_p in range(n_actions):
+                if states_player[s_p] == path_minotaur[t]:
+                    Q[s_p, a_p] = r[s_p, a_p] + np.dot(p_player[:, s_p, a_p], V[:, t + 1]) + env.MINOTAUR_REWARD
+                else:
+                    Q[s_p, a_p] = r[s_p,a_p] + np.dot(p_player[:, s_p, a_p], V[:, t + 1])
         # Update by taking the maximum Q value w.r.t the action a
         V[:, t] = np.max(Q, 1);
         # The optimal action is the one that maximizes the Q function
@@ -326,7 +349,6 @@ def value_iteration(env, gamma, epsilon):
     p_player = env.transition_probabilities_player
     n_states_player = env.n_states_player
     states_player = env.states_player
-
 
     p_minotaur = env.transition_probabilities_minotaur
     n_states_minotaur = env.n_states_minotaur
@@ -454,6 +476,9 @@ def animate_solution(maze, path_player, path_minotaur):
             elif path_player[i] == path_minotaur[i]:
                 grid.get_celld()[(path_player[i])].set_facecolor(LIGHT_PURPLE)
                 grid.get_celld()[(path_player[i])].get_text().set_text('Player is caught')
+            # elif path_minotaur[i] == path_minotaur[i - 1]:
+            #     grid.get_celld()[(path_minotaur[i])].set_facecolor(LIGHT_RED)
+            #     grid.get_celld()[(path_minotaur[i])].get_text().set_text('Minotaur')
             else:
                 grid.get_celld()[(path_player[i - 1])].set_facecolor(col_map[maze[path_player[i - 1]]])
                 grid.get_celld()[(path_player[i - 1])].get_text().set_text('')
