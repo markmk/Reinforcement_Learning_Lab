@@ -40,7 +40,7 @@ class Maze:
     OBSTACLE_REWARD = -100
     MINOTAUR_REWARD = -150
 
-    EXIT = (5, 5)
+    EXIT = (6, 5)
 
     def __init__(self, maze, weights=None, random_rewards=False):
         """ Constructor of the environment Maze.
@@ -54,10 +54,9 @@ class Maze:
         self.n_states_minotaur = len(self.states_minotaur);  # need varying ??
         self.transition_probabilities_player = self.__transitions_player();
         self.transition_probabilities_minotaur = self.__transitions_minotaur();
-        self.path_minotaur = self.__get_minotaur_path()
+        # self.path_minotaur = self.__get_minotaur_path()
         self.rewards = self.__get_rewards()
-        # self.rewards = self.__rewards(weights=weights,
-        #                               random_rewards=random_rewards);
+
 
     def __actions(self):
         actions = dict();
@@ -161,10 +160,10 @@ class Maze:
                 transition_probabilities[next_s, s, a] = 1;
         return transition_probabilities;
 
-    def __get_minotaur_path(self):
+    def get_minotaur_path(self, horizon):
         start_minotaur = (6, 5)
         s_minotaur = self.map_minotaur[start_minotaur]
-        T = 20
+        T = horizon
         path_minotaur = list()
         path_minotaur.append(start_minotaur)
         for t in range(T):
@@ -191,24 +190,25 @@ class Maze:
                     rewards[s, a] = self.STEP_REWARD
         return rewards
 
-    def simulate(self, start_player, start_minotaur, policy, method):
+    def simulate(self, start_player, start_minotaur, policy, method, horizon):
         if method not in methods:
             error = 'ERROR: the argument method must be in {}'.format(methods);
             raise NameError(error);
 
         path_player = list();
-        path_minotaur = self.path_minotaur
+        path_minotaur = self.get_minotaur_path(horizon)
+
         if method == 'DynProg':
             # Deduce the horizon from the policy shape
             horizon = policy.shape[1];
             # Initialize current state and time
             t = 0;
             s_player = self.map_player[start_player];
-            s_minotaur = path_minotaur[t]
+            xy_minotaur = path_minotaur[t]
             # Add the starting position in the maze to the path
             path_player.append(start_player);
 
-            while t < horizon - 1 and s_player != s_minotaur:
+            while t < horizon - 1 and self.states_player[s_player] != xy_minotaur and self.states_player[s_player] != self.EXIT:
                 t += 1
                 # Move to next state given the policy and the current state
                 next_s_player = self.__move_player(s_player, policy[s_player, t]);
@@ -216,10 +216,16 @@ class Maze:
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path_player.append(self.states_player[next_s_player])
-                s_minotaur = path_minotaur[t]
+                xy_minotaur = path_minotaur[t]
                 # Update time and state for next iteration
                 s_player = next_s_player
-                print(t)
+
+            if self.states_player[s_player] == xy_minotaur:
+                print('Player was caight at ', t)
+            else:
+                print('Player exited ', t)
+            print(path_player)
+            print(path_minotaur)
 
         if method == 'ValIter':
             # Initialize current state, next state and time
@@ -252,8 +258,7 @@ class Maze:
                 # Update time and state for next iteration
                 t += 1;
                 print(t)
-        print(path_player)
-        print(path_minotaur)
+
         return path_player, path_minotaur
 
     def show(self):
@@ -292,7 +297,7 @@ def dynamic_programming(env, horizon):
     # - State space
     # - Action space
     # - The finite horizon
-    path_minotaur = env.path_minotaur
+    path_minotaur = env.get_minotaur_path(horizon)
     r = env.rewards
     p_player = env.transition_probabilities_player
     n_states_player = env.n_states_player
