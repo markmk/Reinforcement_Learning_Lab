@@ -107,7 +107,7 @@ if __name__ == '__main__':
     state_id = 0
 
     episode_rewards = []
-    for episode in range(100000):
+    for episode in range(1000):
         episode_reward = 0
         for step in range(100):
             state_id, reward = q_learning(step, state_id, police_location)
@@ -116,11 +116,12 @@ if __name__ == '__main__':
             police_location = move_police(police_location, police_random_action)
             episode_reward += reward
         episode_rewards.append(episode_reward)
+        print("eposide number: {}".format(episode))
 
     idx = np.arange(start=0, stop=len(episode_rewards), step=100)
     # print(idx)
     plot_episode = np.array(episode_rewards)[idx]
-    plt.plot([i for i in range(len(plot_episode))], plot_episode)
+    plt.plot(idx, plot_episode)
     plt.ylabel("Reward")
     plt.xlabel("episode #")
     plt.show()
