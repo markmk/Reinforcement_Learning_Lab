@@ -44,22 +44,28 @@ def q_learning(state_id):
     police_actions = state_action[state_id][1]
     police_random_action = random.choice(list(police_actions.keys()))
     police_next_state = move_police(state_id, police_random_action)
-    if random.uniform(0, 1) < epsilon:
-        random_action = random.choice(list(state_action[state_id][0].keys()))
-        next_state = move_robber(state_id, random_action)
-        next_state_id = state_id_map[(next_state, police_next_state)]
-        lr = get_lr(state_id, random_action)
-        q_table[state_id, random_action] = q_table[state_id, random_action] + lr * (reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, random_action])
-    else:
-        allowed_actions_id = np.array(list(state_action[state_id][0].keys()))
-        # print(id_state_map[state_id])
-        # print(allowed_actions_id)
-        action = allowed_actions_id[np.argmax(q_table[state_id, allowed_actions_id])]
-        next_state = move_robber(state_id, action)
-        next_state_id = state_id_map[(next_state, police_next_state)]
-        lr = get_lr(state_id, action)
-        q_table[state_id, action] = q_table[state_id, action] + lr * (
-                    reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, action])
+    # if random.uniform(0, 1) < epsilon:
+    #     random_action = random.choice(list(state_action[state_id][0].keys()))
+    #     next_state = move_robber(state_id, random_action)
+    #     next_state_id = state_id_map[(next_state, police_next_state)]
+    #     lr = get_lr(state_id, random_action)
+    #     q_table[state_id, random_action] = q_table[state_id, random_action] + lr * (reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, random_action])
+    # else:
+    #     allowed_actions_id = np.array(list(state_action[state_id][0].keys()))
+    #     # print(id_state_map[state_id])
+    #     # print(allowed_actions_id)
+    #     action = allowed_actions_id[np.argmax(q_table[state_id, allowed_actions_id])]
+    #     next_state = move_robber(state_id, action)
+    #     next_state_id = state_id_map[(next_state, police_next_state)]
+    #     lr = get_lr(state_id, action)
+    #     q_table[state_id, action] = q_table[state_id, action] + lr * (
+    #                 reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, action])
+    random_action = random.choice(list(state_action[state_id][0].keys()))
+    next_state = move_robber(state_id, random_action)
+    next_state_id = state_id_map[(next_state, police_next_state)]
+    lr = get_lr(state_id, random_action)
+    q_table[state_id, random_action] = q_table[state_id, random_action] + lr * (
+                reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, random_action])
     return next_state_id
 
 
@@ -136,7 +142,7 @@ if __name__ == '__main__':
 
     state_id = state_id_map[(robber_start, police_start)]
     episode_q_values = []
-    for episode in range(1000000):
+    for episode in range(10000000):
         state_id = q_learning(state_id)
         # episode_reward += reward
         # if episode_reward < -100:
