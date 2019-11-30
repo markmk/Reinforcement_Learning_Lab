@@ -94,13 +94,14 @@ if __name__ == '__main__':
 
     state_action_update_map = dict()
 
-    q_table = np.zeros((256, 5))
-    epsilon = 0.4
+    # q_table = np.zeros((256, 5))
+    epsilons = [0.1, 0.2, 0.3, 0.4, 0.5]
     gamma = 0.8
 
     id_state_map = dict()
     state_id_map = dict()
     s = 0
+
     for robber_x in range(4):
         for robber_y in range(4):
             for police_x in range(4):
@@ -134,29 +135,31 @@ if __name__ == '__main__':
         police_action.pop(STAY)
 
         state_action[s] = (my_action, police_action)
+    for epsilon in epsilons:
+        q_table = np.zeros((256, 5))
+        state_id = state_id_map[(robber_start, police_start)]
+        episode_q_values = []
+        allowed_actions_id = np.array(list(state_action[state_id][0].keys()))
+        action_prob = epsilon_greedy(state_id, allowed_actions_id, epsilon)
+        action = np.random.choice(np.arange(len(action_prob)), p=action_prob)
+        for episode in range(1000000):
+            state_id, action = q_learning(state_id, action)
+            # episode_reward += reward
+            # if episode_reward < -100:
+            #     break
+            # episode_q_values.append(np.max(q_table[1, :]))
+            episode_q_values.append(np.linalg.norm(q_table))
+            print("eposide number: {}".format(episode))
 
-    state_id = state_id_map[(robber_start, police_start)]
-    episode_q_values = []
-    allowed_actions_id = np.array(list(state_action[state_id][0].keys()))
-    action_prob = epsilon_greedy(state_id, allowed_actions_id, epsilon)
-    action = np.random.choice(np.arange(len(action_prob)), p=action_prob)
-
-    for episode in range(10000000):
-        state_id, action = q_learning(state_id, action)
-        # episode_reward += reward
-        # if episode_reward < -100:
-        #     break
-        # episode_q_values.append(np.max(q_table[1, :]))
-        episode_q_values.append(np.linalg.norm(q_table))
-        print("eposide number: {}".format(episode))
-
-    # idx = np.arange(start=0, stop=len(episode_rewards), step=1000)
+        idx = np.arange(start=0, stop=1000000, step=2000)
     # print(idx)
     # plot_episode = np.array(episode_rewards)[idx]
     # plt.plot(idx, plot_episode)
-    plt.plot(episode_q_values)
-    plt.ylabel("q_value")
-    plt.xlabel("episode #")
+        plt.plot(idx, np.array(episode_q_values)[idx])
+
+    plt.ylabel("Q_table Norm")
+    plt.xlabel("episode number")
+    plt.legend(epsilons,loc = 4)
     plt.show()
 
 
