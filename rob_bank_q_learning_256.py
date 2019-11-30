@@ -4,32 +4,34 @@ import matplotlib.pyplot as plt
 
 def move_robber(state_id, action_id):
     robber_action = actions[action_id]
-    robber_state = id_state_map[state_id]
+    robber_state = id_state_map[state_id][0]
     return (robber_state[0] + robber_action[0], robber_state[1] + robber_action[1])
 
 
-def move_police(police_location, action_id):
+def move_police(state_id, action_id):
+    police_location = id_state_map[state_id][1]
     police_action = actions[action_id]
     return (police_location[0] + police_action[0], police_location[1] + police_action[1])
 
 
-def get_police_actions(police_location):
-    police_action = actions.copy()
-    if police_location[1] == 0:
-        police_action.pop(MOVE_LEFT)
-    if police_location[1] == 3:
-        police_action.pop(MOVE_RIGHT)
-    if police_location[0] == 0:
-        police_action.pop(MOVE_UP)
-    if police_location[0] == 3:
-        police_action.pop(MOVE_DOWN)
-    police_action.pop(STAY)
-    return police_action
+# def get_police_actions(police_location):
+#     police_action = actions.copy()
+#     if police_location[1] == 0:
+#         police_action.pop(MOVE_LEFT)
+#     if police_location[1] == 3:
+#         police_action.pop(MOVE_RIGHT)
+#     if police_location[0] == 0:
+#         police_action.pop(MOVE_UP)
+#     if police_location[0] == 3:
+#         police_action.pop(MOVE_DOWN)
+#     police_action.pop(STAY)
+#     return police_action
 
 
-def get_reward(state_id, police_location):
+def get_reward(state_id):
     my_reward = 0
-    my_location = id_state_map[state_id]
+    my_location = id_state_map[state_id][0]
+    police_location = id_state_map[state_id][1]
     if my_location == police_location:
         my_reward = my_reward - 10
     elif my_location == bank_location:
@@ -37,25 +39,28 @@ def get_reward(state_id, police_location):
     return my_reward
 
 
-def q_learning(state_id, police_location):
-    reward = get_reward(state_id, police_location)
+def q_learning(state_id):
+    reward = get_reward(state_id)
+    police_actions = state_action[state_id][1]
+    police_random_action = random.choice(list(police_actions.keys()))
+    police_next_state = move_police(state_id, police_random_action)
     if random.uniform(0, 1) < epsilon:
-        random_action = random.choice(list(state_action[state_id].keys()))
+        random_action = random.choice(list(state_action[state_id][0].keys()))
         next_state = move_robber(state_id, random_action)
-        next_state_id = state_id_map[next_state]
+        next_state_id = state_id_map[(next_state, police_next_state)]
         lr = get_lr(state_id, random_action)
         q_table[state_id, random_action] = q_table[state_id, random_action] + lr * (reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, random_action])
     else:
-        allowed_actions_id = np.array(list(state_action[state_id].keys()))
+        allowed_actions_id = np.array(list(state_action[state_id][0].keys()))
         # print(id_state_map[state_id])
         # print(allowed_actions_id)
         action = allowed_actions_id[np.argmax(q_table[state_id, allowed_actions_id])]
         next_state = move_robber(state_id, action)
-        next_state_id = state_id_map[next_state]
+        next_state_id = state_id_map[(next_state, police_next_state)]
         lr = get_lr(state_id, action)
         q_table[state_id, action] = q_table[state_id, action] + lr * (
                     reward + gamma * np.max(q_table[next_state_id, :]) - q_table[state_id, action])
-    return next_state_id, reward
+    return next_state_id
 
 
 def get_lr(state_id, action_id):
@@ -88,23 +93,25 @@ if __name__ == '__main__':
 
     state_action_update_map = dict()
 
-    q_table = np.zeros((16, 5))
-    epsilon = 0.1
+    q_table = np.zeros((256, 5))
+    epsilon = 0.4
     gamma = 0.8
 
     id_state_map = dict()
     state_id_map = dict()
     s = 0
-    for i in range(4):
-        for j in range(4):
-            id_state_map[s] = (i, j)
-            state_id_map[(i, j)] = s
-            s += 1
+    for robber_x in range(4):
+        for robber_y in range(4):
+            for police_x in range(4):
+                for police_y in range(4):
+                    id_state_map[s] = ((robber_x, robber_y), (police_x, police_y))
+                    state_id_map[((robber_x, robber_y), (police_x, police_y))] = s
+                    s += 1
 
     state_action = dict()
     for s in list(id_state_map.keys()):
         my_action = actions.copy()
-        my_location = id_state_map[s]
+        my_location = id_state_map[s][0]
         if my_location[1] == 0:
             my_action.pop(MOVE_LEFT)
         if my_location[1] == 3:
@@ -113,22 +120,29 @@ if __name__ == '__main__':
             my_action.pop(MOVE_UP)
         if my_location[0] == 3:
             my_action.pop(MOVE_DOWN)
-        state_action[s] = my_action
+        police_action = actions.copy()
+        police_location = id_state_map[s][1]
+        if police_location[1] == 0:
+            police_action.pop(MOVE_LEFT)
+        if police_location[1] == 3:
+            police_action.pop(MOVE_RIGHT)
+        if police_location[0] == 0:
+            police_action.pop(MOVE_UP)
+        if police_location[0] == 3:
+            police_action.pop(MOVE_DOWN)
+        police_action.pop(STAY)
 
-    police_location = police_start
-    state_id = 0
+        state_action[s] = (my_action, police_action)
 
+    state_id = state_id_map[(robber_start, police_start)]
     episode_q_values = []
     for episode in range(1000000):
-        state_id, reward = q_learning(state_id, police_location)
-        police_actions = get_police_actions(police_location)
-        police_random_action = random.choice(list(police_actions.keys()))
-        police_location = move_police(police_location, police_random_action)
+        state_id = q_learning(state_id)
         # episode_reward += reward
         # if episode_reward < -100:
         #     break
-
-        episode_q_values.append(q_table[0, 0])
+        # episode_q_values.append(np.max(q_table[1, :]))
+        episode_q_values.append(np.linalg.norm(q_table))
         print("eposide number: {}".format(episode))
 
     # idx = np.arange(start=0, stop=len(episode_rewards), step=1000)
