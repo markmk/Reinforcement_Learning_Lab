@@ -28,42 +28,52 @@ env = mz.Maze(maze)
 # path_player, path_minotaur = env.simulate(start_player, start_minotaur, policy, method)
 #
 # mz.animate_solution(maze, path_player, path_minotaur)
+def prob_b():
+    # Finite horizon
+    horizon = 20
+    exit_prob = list()
+    horizons = list()
+    for horizon in range(15, 21):
+        exit = 0.0
+        n_games = 100
+        for n_game in range(n_games):
+            V, policy = mz.dynamic_programming(env, horizon)
+            method = 'DynProg'
+            start_player = (0, 0)
+            start_minotaur = (6, 5)
+            path_player, path_minotaur = env.simulate(start_player, start_minotaur, policy, method, horizon)
+            if path_player[len(path_player) - 1] == (6, 5):
+                exit += 1.0
+            print(n_game)
+        exit_prob.append(exit/n_games)
+        horizons.append(horizon)
+        print(horizon)
 
-# Finite horizon
-horizon = 20
-exit_prob = list()
-horizons = list()
-for horizon in range(15, 21):
-    exit = 0.0
-    n_games = 100
-    for n_game in range(n_games):
+    plt.plot(np.array(horizons), np.array(exit_prob))
+    plt.ylabel("exit probabilities")
+    plt.xlabel("horizon")
+    plt.show()
+
+def prob_c():
+    n_games = 10000
+    p = 1.0 / 30.0
+    exit = 0
+    for n in range(n_games):
+        print('num of games: {}'.format(n))
+        horizon = np.random.geometric(p)
+        # horizon = 17
+        # Solve the MDP problem with dynamic programming
         V, policy = mz.dynamic_programming(env, horizon)
+
         method = 'DynProg'
         start_player = (0, 0)
         start_minotaur = (6, 5)
         path_player, path_minotaur = env.simulate(start_player, start_minotaur, policy, method, horizon)
         if path_player[len(path_player) - 1] == (6, 5):
             exit += 1.0
-        print(n_game)
-    exit_prob.append(exit/n_games)
-    horizons.append(horizon)
-    print(horizon)
 
-plt.plot(np.array(horizons), np.array(exit_prob))
-plt.ylabel("exit probabilities")
-plt.xlabel("horizon")
-plt.show()
+    print("exit prob: {}", format(exit/n_games))
 
-# n_games = 10000
-# p = 1.0 / 30.0
-#
-# for n in range(n_games):
-#     # horizon = np.random.geometric(p)
-#     horizon = 17
-#     # Solve the MDP problem with dynamic programming
-#     V, policy = mz.dynamic_programming(env, horizon)
-#
-#     method = 'DynProg'
-#     start_player = (0, 0)
-#     start_minotaur = (6, 5)
-#     path_player, path_minotaur = env.simulate(start_player, start_minotaur, policy, method, horizon)
+
+if __name__ == '__main__':
+    prob_c()
